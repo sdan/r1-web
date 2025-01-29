@@ -6,6 +6,7 @@ import Accordion from "@components/Accordion";
 import Card from "@components/Card";
 import ModalStack from "@components/ModalStack";
 import MessagesInterface from "@components/examples/MessagesInterface";
+import GPUMonitor from '@components/examples/GPUMonitor';
 
 export const dynamic = "force-static";
 
@@ -25,6 +26,9 @@ export default async function Page() {
       <Grid>
         <Accordion defaultValue={true} title="DEEPSEEK R-1 RUNNING LOCALLY IN YOUR BROWSER">
           <br />
+          <Card title="GPU UTILIZATION">
+            <GPUMonitor />
+          </Card>
           <br />
           <Card title="MESSAGES">
             <MessagesInterface />

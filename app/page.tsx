@@ -75,6 +75,8 @@ import TreeView from '@components/TreeView';
 import UpdatingDataTable from '@components/examples/UpdatingDataTable';
 import { useEffect, useState, useRef } from 'react'
 import { InterruptableStoppingCriteria } from '@huggingface/transformers'
+import GPUMonitor from '@components/GPUMonitor';
+import TPSCycleTable from '@components/examples/TPSCycleTable';
 
 export const dynamic = 'force-static';
 
@@ -93,6 +95,7 @@ export default function ChatPage() {
   const worker = useRef<Worker | null>(null)
   const [messages, setMessages] = useState<MessageType[]>([])
   const [isRunning, setIsRunning] = useState(false)
+  const [tpsValue, setTpsValue] = useState<number | null>(null)
   const stoppingCriteria = useRef(new InterruptableStoppingCriteria())
 
   useEffect(() => {
@@ -106,6 +109,11 @@ export default function ChatPage() {
           setMessages(prev => [...prev, { role: 'assistant', content: '' }])
           break
         case 'update':
+          // Update TPS
+          if (typeof e.data.tps === 'number') {
+            setTpsValue(e.data.tps)
+          }
+          // Build the assistant's streaming message
           setMessages(prev => {
             const last = prev.at(-1)
             if (!last) return prev
@@ -125,22 +133,48 @@ export default function ChatPage() {
     return () => worker.current?.removeEventListener('message', onMessage)
   }, [])
 
+  const handleSend = (newMessage: string) => {
+    setMessages(prev => [...prev, { role: 'user', content: newMessage }])
+    setIsRunning(true)
+    worker.current?.postMessage({
+      type: 'generate',
+      data: [...messages, { role: 'user', content: newMessage }]
+    })
+  }
+
+  const handleInterrupt = () => {
+    stoppingCriteria.current.interrupt()
+    worker.current?.postMessage({ type: 'interrupt' })
+  }
+
   return (
-    <MessagesInterface 
-      messages={messages}
-      onSend={(newMessage) => {
-        setMessages(prev => [...prev, { role: 'user', content: newMessage }])
-        setIsRunning(true)
-        worker.current?.postMessage({
-          type: 'generate',
-          data: [...messages, { role: 'user', content: newMessage }]
-        })
-      }}
-      isRunning={isRunning}
-      onInterrupt={() => {
-        stoppingCriteria.current.interrupt()
-        worker.current?.postMessage({ type: 'interrupt' })
-      }}
-    />
-  )
+    <DefaultLayout previewPixelSRC="https://intdev-global.s3.us-west-2.amazonaws.com/template-app-icon.png">
+      <br />
+      <DebugGrid />
+      <DefaultActionBar />
+      <Grid>
+        <Accordion defaultValue={true} title="DEEPSEEK R-1 RUNNING LOCALLY IN YOUR BROWSER">
+          {/* <br />
+          <Card title="GPU UTILIZATION">
+            <GPUMonitor />
+          </Card> */}
+          <br />
+          <Card title="TPS (Tokens/Second)">
+            <TPSCycleTable tpsValue={tpsValue || 0} />
+          </Card>
+          <br />
+          <Card title="MESSAGES">
+            <MessagesInterface 
+              messages={messages}
+              onSend={handleSend}
+              isRunning={isRunning}
+              onInterrupt={handleInterrupt}
+            />
+          </Card>
+          <br />
+        </Accordion>
+      </Grid>
+      <ModalStack />
+    </DefaultLayout>
+  );
 }

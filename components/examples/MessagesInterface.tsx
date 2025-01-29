@@ -1,4 +1,3 @@
-
 import Avatar from '@components/Avatar';
 import ActionButton from '@components/ActionButton';
 import Divider from '@components/Divider';
@@ -11,6 +10,7 @@ import ModalError from '@components/modals/ModalError';
 import Navigation from '@components/Navigation';
 import RowEllipsis from '@components/RowEllipsis';
 import SidebarLayout from '@components/SidebarLayout';
+import Button from '@components/Button';
 import { useState } from 'react';
 
 import * as React from 'react';
@@ -455,39 +455,39 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = ({
         isShowingHandle={true}
         sidebar={
           <>
+            <Avatar src="/C714D780-B4A0-46A5-BC62-0187C130284D_1_105_c.jpeg">
+              <Indent>
+                Oai
+                <br />
+                <ChatPreviewInline>The smallest seed of an idea can grow to define or destroy you</ChatPreviewInline>
+              </Indent>
+            </Avatar>
+            <Avatar src="/pravalogo.png">
+              <Indent>
+                Eas
+                <br />
+                <ChatPreviewInline>You're waiting for a train...</ChatPreviewInline>
+              </Indent>
+            </Avatar>
+            <Avatar src="https://plugins.sdan.io/_next/image?url=%2Fimages%2Fpdf-logo.png&w=256&q=75">
+              <Indent>
+                Bean
+                <br />
+                <ChatPreviewInline>Paradox could collapse the dream</ChatPreviewInline>
+              </Indent>
+            </Avatar>
+            <Avatar src="/channels4_profile.jpg">
+              <Indent>
+                Cook
+                <br />
+                <ChatPreviewInline>I will not follow in my father's footsteps</ChatPreviewInline>
+              </Indent>
+            </Avatar>
             <Avatar src="https://sdan.io/surya_low.jpeg">
               <Indent>
-                SURYA
+                Ed
                 <br />
-                <ChatPreviewInline>No, it has to be more unique</ChatPreviewInline>
-              </Indent>
-            </Avatar>
-            <Avatar>
-              <Indent>
-                Ariadne
-                <br />
-                <ChatPreviewInline>No. Just you.</ChatPreviewInline>
-              </Indent>
-            </Avatar>
-            <Avatar>
-              <Indent>
-                Eames
-                <br />
-                <ChatPreviewInline>dream a little bigger</ChatPreviewInline>
-              </Indent>
-            </Avatar>
-            <Avatar>
-              <Indent>
-                Yusef
-                <br />
-                <ChatPreviewInline>Depends on the dream.</ChatPreviewInline>
-              </Indent>
-            </Avatar>
-            <Avatar>
-              <Indent>
-                Saito
-                <br />
-                <ChatPreviewInline>I bought the airline.</ChatPreviewInline>
+                <ChatPreviewInline>Those aren't my memories</ChatPreviewInline>
               </Indent>
             </Avatar>
           </>
@@ -508,10 +508,14 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = ({
             disabled={isRunning}
             isBlink={!isRunning}
           />
-          <button type="button" onClick={onInterrupt} disabled={!isRunning}>
-            Stop
-          </button>
         </form>
+        <ActionButton 
+          onClick={onInterrupt} 
+          disabled={!isRunning}
+          style={{ marginLeft: '1ch' }}
+        >
+          {isRunning ? 'STOP' : 'IDLE'}
+        </ActionButton>
       </SidebarLayout>
     </div>
   );
