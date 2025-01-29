@@ -8,7 +8,7 @@ import ModalStack from "@components/ModalStack";
 import MessagesInterface from "@components/examples/MessagesInterface";
 import GPUMonitor from '@components/examples/GPUMonitor';
 
-export const dynamic = "force-static";
+
 
 export async function generateMetadata() {
   return {

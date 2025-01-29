@@ -98,33 +98,73 @@ export default function ChatPage() {
   const [tpsValue, setTpsValue] = useState<number | null>(null)
   const stoppingCriteria = useRef(new InterruptableStoppingCriteria())
 
+  // Track loading states
+  const [modelLoading, setModelLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingMessage, setLoadingMessage] = useState('')
+
   useEffect(() => {
     worker.current = new Worker(new URL('../public/worker.js', import.meta.url), {
       type: 'module'
     })
 
+    // Ask worker to load the tokenizer/model right away
+    worker.current.postMessage({ type: 'load' })
+
     const onMessage = (e: MessageEvent) => {
+      // Grab statuses from public/worker.js
       switch (e.data.status) {
+        case 'loading':
+          setModelLoading(true)
+          setLoadingMessage(String(e.data.data || ''))
+          break
+        case 'initiate':
+          setModelLoading(true)
+          setLoadingProgress(0)
+          setLoadingMessage(`Downloading ${e.data.file} ...`)
+          break
+        case 'progress':
+          setModelLoading(true)
+          setLoadingProgress(e.data.progress || 0)
+          setLoadingMessage(`Loading ${e.data.file} (${e.data.progress}%)`)
+          break
+        case 'done':
+          setLoadingProgress(100)
+          setLoadingMessage(`${e.data.file} loaded`)
+          break
+        case 'ready':
+          // All loading is finished, hide the bar
+          setModelLoading(false)
+          setLoadingProgress(100)
+          setLoadingMessage('Model ready!')
+          break
+
+        // When generation starts
         case 'start':
           setMessages(prev => [...prev, { role: 'assistant', content: '' }])
           break
+
+        // As tokens stream in
         case 'update':
-          // Update TPS
           if (typeof e.data.tps === 'number') {
             setTpsValue(e.data.tps)
           }
-          // Build the assistant's streaming message
           setMessages(prev => {
             const last = prev.at(-1)
             if (!last) return prev
-            return [
-              ...prev.slice(0, -1), 
-              { ...last, content: last.content + e.data.output }
-            ]
+            return [...prev.slice(0, -1), { ...last, content: last.content + e.data.output }]
           })
           break
+
+        // When generation completes
         case 'complete':
           setIsRunning(false)
+          break
+
+        // Error states etc.
+        case 'error':
+          console.error('Worker error:', e.data)
+          setModelLoading(false)
           break
       }
     }
@@ -152,8 +192,17 @@ export default function ChatPage() {
       <br />
       <DebugGrid />
       <DefaultActionBar />
+
+      {/* Show a loading bar if the model is still loading */}
+      {modelLoading && (
+        <div style={{ padding: '0 1rem' }}>
+          <BarLoader progress={loadingProgress} />
+          <p>{loadingMessage}</p>
+        </div>
+      )}
+
       <Grid>
-        <Accordion defaultValue={true} title="DEEPSEEK R-1 RUNNING LOCALLY IN YOUR BROWSER">
+        <Accordion defaultValue={true} title="DEEPSEEK R1 RUNNING LOCALLY IN YOUR BROWSER">
           {/* <br />
           <Card title="GPU UTILIZATION">
             <GPUMonitor />

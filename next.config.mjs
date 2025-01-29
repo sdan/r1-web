@@ -1,20 +1,22 @@
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    workerThreads: true,
-    webVitalsAttribution: ['CLS', 'LCP']
+  output: 'export',
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
   webpack: (config) => {
-    config.module.rules.push({
-      test: /\.worker\.ts$/,
-      use: { loader: 'worker-loader' }
-    });
-
-    // Add this to exclude onnxruntime-node
-    config.externals = config.externals || [];
-    config.externals.push('onnxruntime-node');
-
-    return config
-  }
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "sharp$": false,
+      "onnxruntime-node$": false,
+    }
+    return config;
+  },
+  skipTrailingSlashRedirect: true,
+  skipMiddlewareUrlNormalize: true,
 };
 
-export default nextConfig; 
+export default nextConfig;

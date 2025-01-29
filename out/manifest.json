@@ -1,0 +1,16 @@
+{
+  "background_color": "#000000",
+  "description": "SRCL is an open-source React component and style repository",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ],
+  "name": "srcl",
+  "short_name": "srcl",
+  "start_url": "/",
+  "theme_color": "#000000"
+} 

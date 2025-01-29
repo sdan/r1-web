@@ -129,11 +129,11 @@ const DefaultActionBar: React.FC<DefaultActionBarProps> = ({ items = [] }) => {
             openHotkey: 'ctrl+o',
             body: (
               <a
-                href="https://sdan.io"
+                href="https://x.com/sdand"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                SURYA
+                @SDAND
               </a>
             ),
           },
