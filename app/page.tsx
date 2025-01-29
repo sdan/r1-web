@@ -1,3 +1,4 @@
+'use client'
 import '@root/global.scss';
 
 import * as Constants from '@common/constants';
@@ -72,82 +73,74 @@ import Text from '@components/Text';
 import TextArea from '@components/TextArea';
 import TreeView from '@components/TreeView';
 import UpdatingDataTable from '@components/examples/UpdatingDataTable';
+import { useEffect, useState, useRef } from 'react'
+import { InterruptableStoppingCriteria } from '@huggingface/transformers'
 
 export const dynamic = 'force-static';
 
 // NOTE(jimmylee)
 // https://nextjs.org/docs/app/api-reference/functions/generate-metadata
-export async function generateMetadata({ params, searchParams }) {
-  const title = Package.name;
-  const description = Package.description;
-  const url = 'https://sacred.computer';
-  const handle = '@internetxstudio';
 
-  return {
-    description,
-    icons: {
-      apple: [{ url: '/apple-touch-icon.png' }, { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
-      icon: '/favicon-32x32.png',
-      other: [
-        {
-          rel: 'apple-touch-icon-precomposed',
-          url: '/apple-touch-icon-precomposed.png',
-        },
-      ],
-      shortcut: '/favicon-16x16.png',
-    },
-    metadataBase: new URL('https://wireframes.internet.dev'),
-    openGraph: {
-      description,
-      images: [
-        {
-          url: 'https://intdev-global.s3.us-west-2.amazonaws.com/public/internet-dev/57a5715d-d332-47d0-8ec8-40cfa75bf36f.png',
-          width: 1500,
-          height: 785,
-        },
-      ],
-      title,
-      type: 'website',
-      url,
-    },
-    title,
-    twitter: {
-      card: 'summary_large_image',
-      description,
-      handle,
-      images: ['https://intdev-global.s3.us-west-2.amazonaws.com/public/internet-dev/57a5715d-d332-47d0-8ec8-40cfa75bf36f.png'],
-      title,
-      url,
-    },
-    url,
-  };
+
+interface MessageType {
+  role: 'user' | 'assistant'
+  content: string
 }
 
 // NOTE(jimmylee)
 // https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts
-export default async function Page(props) {
+export default function ChatPage() {
+  const worker = useRef<Worker | null>(null)
+  const [messages, setMessages] = useState<MessageType[]>([])
+  const [isRunning, setIsRunning] = useState(false)
+  const stoppingCriteria = useRef(new InterruptableStoppingCriteria())
+
+  useEffect(() => {
+    worker.current = new Worker(new URL('../public/worker.js', import.meta.url), {
+      type: 'module'
+    })
+
+    const onMessage = (e: MessageEvent) => {
+      switch (e.data.status) {
+        case 'start':
+          setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+          break
+        case 'update':
+          setMessages(prev => {
+            const last = prev.at(-1)
+            if (!last) return prev
+            return [
+              ...prev.slice(0, -1), 
+              { ...last, content: last.content + e.data.output }
+            ]
+          })
+          break
+        case 'complete':
+          setIsRunning(false)
+          break
+      }
+    }
+
+    worker.current.addEventListener('message', onMessage)
+    return () => worker.current?.removeEventListener('message', onMessage)
+  }, [])
+
   return (
-    <DefaultLayout previewPixelSRC="https://intdev-global.s3.us-west-2.amazonaws.com/template-app-icon.png">
-      <br />
-
-
-      <DebugGrid />
-      <DefaultActionBar />
-
-      <Grid>
-        
-        <Accordion defaultValue={true} title="DEEPSEEK R-1 RUNNING LOCALLY IN YOUR BROWSER">
-          <br />
-          <br />
-          <Card title="MESSAGES">
-            <MessagesInterface />
-          </Card>
-          <br />
-        </Accordion>
-
-      </Grid>
-
-      <ModalStack />
-    </DefaultLayout>
-  );
+    <MessagesInterface 
+      messages={messages}
+      onSend={(newMessage) => {
+        setMessages(prev => [...prev, { role: 'user', content: newMessage }])
+        setIsRunning(true)
+        worker.current?.postMessage({
+          type: 'generate',
+          data: [...messages, { role: 'user', content: newMessage }]
+        })
+      }}
+      isRunning={isRunning}
+      onInterrupt={() => {
+        stoppingCriteria.current.interrupt()
+        worker.current?.postMessage({ type: 'interrupt' })
+      }}
+    />
+  )
 }

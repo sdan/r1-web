@@ -1,3 +1,4 @@
+
 import Avatar from '@components/Avatar';
 import ActionButton from '@components/ActionButton';
 import Divider from '@components/Divider';
@@ -10,16 +11,37 @@ import ModalError from '@components/modals/ModalError';
 import Navigation from '@components/Navigation';
 import RowEllipsis from '@components/RowEllipsis';
 import SidebarLayout from '@components/SidebarLayout';
+import { useState } from 'react';
 
 import * as React from 'react';
 
-interface MessagesInterfaceProps extends React.HTMLAttributes<HTMLSpanElement> {}
+interface MessagesInterfaceProps {
+  messages: Array<{ role: string; content: string }>
+  onSend: (message: string) => void
+  isRunning: boolean
+  onInterrupt: () => void
+}
 
 const ChatPreviewInline = (props) => {
   return <RowEllipsis style={{ opacity: 0.5, marginBottom: `10px` }}>{props.children}</RowEllipsis>;
 };
 
-const MessagesInterface: React.FC<MessagesInterfaceProps> = () => {
+const MessagesInterface: React.FC<MessagesInterfaceProps> = ({ 
+  messages, 
+  onSend,
+  isRunning,
+  onInterrupt 
+}) => {
+  const [inputValue, setInputValue] = useState('')
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (inputValue.trim()) {
+      onSend(inputValue.trim())
+      setInputValue('')
+    }
+  }
+
   return (
     <div style={{ minWidth: '28ch' }}>
       <Navigation
@@ -471,15 +493,25 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = () => {
           </>
         }
       >
-        <Message>Why are they all looking at me?</Message>
-        <MessageViewer>Because my subconscious feels that someone else is creating this world. The more you change things, the quicker the projections start to converge on you.</MessageViewer>
-        <Message>Converge?</Message>
-        <MessageViewer>It's the foreign nature of the dreamer. They attack like white blood cells fighting an infection.</MessageViewer>
-        <Message>They're going to attack us?</Message>
-        <MessageViewer>No. Just you.</MessageViewer>
-        <br />
-        <br />
-        <Input autoComplete="off" isBlink={true} label="Message" name="test_message_interface" />
+        {messages.map((msg, i) => (
+          msg.role === 'user' ? (
+            <Message key={i}>{msg.content}</Message>
+          ) : (
+            <MessageViewer key={i}>{msg.content}</MessageViewer>
+          )
+        ))}
+        
+        <form onSubmit={handleSubmit}>
+          <Input 
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            disabled={isRunning}
+            isBlink={!isRunning}
+          />
+          <button type="button" onClick={onInterrupt} disabled={!isRunning}>
+            Stop
+          </button>
+        </form>
       </SidebarLayout>
     </div>
   );
