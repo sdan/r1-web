@@ -1,0 +1,8 @@
+.root {
+}
+
+.full {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  white-space: nowrap;
+}
