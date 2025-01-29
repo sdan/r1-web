@@ -15,7 +15,7 @@ Built using [SRCL](https://github.com/internet-development/www-sacred), a React 
 
 ## Requirements
 
-- Node.js >= 18
+- Node.js >= 18.18.0
 - npm or yarn
 - Browser with WebGPU support (Chrome Canary or Chrome 119+ recommended)
 
