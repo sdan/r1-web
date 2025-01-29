@@ -80,6 +80,23 @@ import TPSCycleTable from '@components/examples/TPSCycleTable';
 
 export const dynamic = 'force-static';
 
+// Add WebGPU types
+declare global {
+  interface Navigator {
+    gpu?: {
+      requestAdapter(): Promise<GPUAdapter | null>;
+    };
+  }
+  
+  interface GPUAdapter {
+    requestDevice(): Promise<GPUDevice>;
+  }
+
+  interface GPUDevice {
+    destroy(): void;
+  }
+}
+
 // NOTE(jimmylee)
 // https://nextjs.org/docs/app/api-reference/functions/generate-metadata
 
@@ -96,75 +113,54 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<MessageType[]>([])
   const [isRunning, setIsRunning] = useState(false)
   const [tpsValue, setTpsValue] = useState<number | null>(null)
+  const [webGPUSupported, setWebGPUSupported] = useState<boolean>(true)
   const stoppingCriteria = useRef(new InterruptableStoppingCriteria())
 
-  // Track loading states
-  const [modelLoading, setModelLoading] = useState(false)
-  const [loadingProgress, setLoadingProgress] = useState(0)
-  const [loadingMessage, setLoadingMessage] = useState('')
-
   useEffect(() => {
+    // Check WebGPU support
+    const checkWebGPU = async () => {
+      try {
+        if (!navigator.gpu) {
+          throw new Error("WebGPU is not supported in this browser")
+        }
+        const adapter = await navigator.gpu.requestAdapter()
+        if (!adapter) {
+          throw new Error("No suitable GPU adapter found")
+        }
+      } catch (e) {
+        console.error('WebGPU not supported:', e)
+        setWebGPUSupported(false)
+      }
+    }
+    
+    checkWebGPU()
+    
     worker.current = new Worker(new URL('../public/worker.js', import.meta.url), {
       type: 'module'
     })
 
-    // Ask worker to load the tokenizer/model right away
-    worker.current.postMessage({ type: 'load' })
-
     const onMessage = (e: MessageEvent) => {
-      // Grab statuses from public/worker.js
       switch (e.data.status) {
-        case 'loading':
-          setModelLoading(true)
-          setLoadingMessage(String(e.data.data || ''))
-          break
-        case 'initiate':
-          setModelLoading(true)
-          setLoadingProgress(0)
-          setLoadingMessage(`Downloading ${e.data.file} ...`)
-          break
-        case 'progress':
-          setModelLoading(true)
-          setLoadingProgress(e.data.progress || 0)
-          setLoadingMessage(`Loading ${e.data.file} (${e.data.progress}%)`)
-          break
-        case 'done':
-          setLoadingProgress(100)
-          setLoadingMessage(`${e.data.file} loaded`)
-          break
-        case 'ready':
-          // All loading is finished, hide the bar
-          setModelLoading(false)
-          setLoadingProgress(100)
-          setLoadingMessage('Model ready!')
-          break
-
-        // When generation starts
         case 'start':
           setMessages(prev => [...prev, { role: 'assistant', content: '' }])
           break
-
-        // As tokens stream in
         case 'update':
+          // Update TPS
           if (typeof e.data.tps === 'number') {
             setTpsValue(e.data.tps)
           }
+          // Build the assistant's streaming message
           setMessages(prev => {
             const last = prev.at(-1)
             if (!last) return prev
-            return [...prev.slice(0, -1), { ...last, content: last.content + e.data.output }]
+            return [
+              ...prev.slice(0, -1), 
+              { ...last, content: last.content + e.data.output }
+            ]
           })
           break
-
-        // When generation completes
         case 'complete':
           setIsRunning(false)
-          break
-
-        // Error states etc.
-        case 'error':
-          console.error('Worker error:', e.data)
-          setModelLoading(false)
           break
       }
     }
@@ -192,36 +188,33 @@ export default function ChatPage() {
       <br />
       <DebugGrid />
       <DefaultActionBar />
-
-      {/* Show a loading bar if the model is still loading */}
-      {modelLoading && (
-        <div style={{ padding: '0 1rem' }}>
-          <BarLoader progress={loadingProgress} />
-          <p>{loadingMessage}</p>
-        </div>
-      )}
-
       <Grid>
-        <Accordion defaultValue={true} title="DEEPSEEK R1 RUNNING LOCALLY IN YOUR BROWSER">
-          {/* <br />
-          <Card title="GPU UTILIZATION">
-            <GPUMonitor />
-          </Card> */}
-          <br />
-          <Card title="TPS (Tokens/Second)">
-            <TPSCycleTable tpsValue={tpsValue || 0} />
-          </Card>
-          <br />
-          <Card title="MESSAGES">
-            <MessagesInterface 
-              messages={messages}
-              onSend={handleSend}
-              isRunning={isRunning}
-              onInterrupt={handleInterrupt}
-            />
-          </Card>
-          <br />
-        </Accordion>
+        {!webGPUSupported ? (
+          <AlertBanner>
+            ⚠️ WebGPU is not supported in your browser. Please use Chrome Canary or Chrome 119+ to run this application.
+          </AlertBanner>
+        ) : (
+          <Accordion defaultValue={true} title="DEEPSEEK R-1 RUNNING LOCALLY IN YOUR BROWSER">
+            {/* <br />
+            <Card title="GPU UTILIZATION">
+              <GPUMonitor />
+            </Card> */}
+            <br />
+            <Card title="TPS (Tokens/Second)">
+              <TPSCycleTable tpsValue={tpsValue || 0} />
+            </Card>
+            <br />
+            <Card title="MESSAGES">
+              <MessagesInterface 
+                messages={messages}
+                onSend={handleSend}
+                isRunning={isRunning}
+                onInterrupt={handleInterrupt}
+              />
+            </Card>
+            <br />
+          </Accordion>
+        )}
       </Grid>
       <ModalStack />
     </DefaultLayout>
