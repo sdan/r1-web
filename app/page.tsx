@@ -162,10 +162,24 @@ export default function ChatPage() {
         case 'complete':
           setIsRunning(false)
           break
+        case 'error':
+          // Handle error message from worker
+          console.error('Worker error:', e.data.data)
+          if (e.data.data.includes('WebGPU is not supported')) {
+            setWebGPUSupported(false)
+          }
+          setIsRunning(false)
+          break
       }
     }
 
     worker.current.addEventListener('message', onMessage)
+    
+    // Only load the model if WebGPU is supported
+    if (navigator.gpu) {
+      worker.current.postMessage({ type: 'load' })
+    }
+    
     return () => worker.current?.removeEventListener('message', onMessage)
   }, [])
 
