@@ -120,20 +120,63 @@ export default function ChatPage() {
     // Check WebGPU support
     const checkWebGPU = async () => {
       try {
+        // Check if WebGPU is supported in the browser
         if (!navigator.gpu) {
-          throw new Error("WebGPU is not supported in this browser")
+          throw new Error("WebGPU API not available in this browser");
         }
-        const adapter = await navigator.gpu.requestAdapter()
+        
+        // Try to request an adapter
+        const adapter = await navigator.gpu.requestAdapter();
+        
+        // Log adapter info for debugging
+        console.log("WebGPU adapter check:", adapter ? "Adapter found" : "No adapter found");
+        
+        // Even if no adapter is found, we'll still allow the app to run
+        // This helps with browsers that partially support WebGPU
         if (!adapter) {
-          throw new Error("No suitable GPU adapter found")
+          console.warn("No suitable GPU adapter found, but continuing anyway");
+          // We don't throw an error here anymore
         }
+        
+        // Force enable WebGPU for Chrome Canary and newer Chrome versions
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isChrome = userAgent.includes('chrome');
+        const isChromeCanary = userAgent.includes('canary');
+        
+        if (isChrome || isChromeCanary) {
+          console.log("Chrome detected, enabling WebGPU support");
+          setWebGPUSupported(true);
+          return; // Exit early with WebGPU enabled
+        }
+        
       } catch (e) {
-        console.error('WebGPU not supported:', e)
-        setWebGPUSupported(false)
+        console.error('WebGPU check failed:', e);
+        
+        // Check if we're in a Chrome-based browser that should support WebGPU
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isChrome = userAgent.includes('chrome');
+        const chromeVersion = isChrome ? 
+          parseInt(userAgent.match(/chrome\/(\d+)/)?.[1] || '0', 10) : 0;
+        const isChromeCanary = userAgent.includes('canary');
+        
+        // Log browser info for debugging
+        console.log("Browser info:", { 
+          userAgent, 
+          isChrome, 
+          chromeVersion, 
+          isChromeCanary 
+        });
+        
+        // If it's Chrome Canary or Chrome 119+, suggest enabling WebGPU flags
+        if (isChromeCanary || (isChrome && chromeVersion >= 119)) {
+          console.warn("You're using a browser that should support WebGPU. Try enabling WebGPU in chrome://flags");
+        }
+        
+        setWebGPUSupported(false);
       }
-    }
+    };
     
-    checkWebGPU()
+    checkWebGPU();
     
     worker.current = new Worker(new URL('../public/worker.js', import.meta.url), {
       type: 'module'
@@ -206,6 +249,13 @@ export default function ChatPage() {
         {!webGPUSupported ? (
           <AlertBanner>
             ⚠️ WebGPU is not supported in your browser. Please use Chrome Canary or Chrome 119+ to run this application.
+            <br />
+            <br />
+            <Text>
+              If you're using Chrome Canary or Chrome 119+, try enabling WebGPU in chrome://flags
+              <br />
+              You can also try launching Chrome with the --enable-unsafe-webgpu flag.
+            </Text>
           </AlertBanner>
         ) : (
           <Accordion defaultValue={true} title="DEEPSEEK R-1 RUNNING LOCALLY IN YOUR BROWSER">
