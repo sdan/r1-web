@@ -19,7 +19,7 @@ export async function generateMetadata() {
 
 export default async function Page() {
   return (
-    <DefaultLayout previewPixelSRC="https://intdev-global.s3.us-west-2.amazonaws.com/template-app-icon.png">
+    <DefaultLayout previewPixelSRC="https://intdev-global.s3.us-west-2.amazonaws.com/My_movie_1.mp4">
       <br />
       <DebugGrid />
       <DefaultActionBar />
