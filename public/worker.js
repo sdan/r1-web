@@ -161,9 +161,20 @@ function handleProgress(event) {
 
 async function load() {
   console.log('Starting model load');
-  self.postMessage({ status: "loading", data: "Loading model..." });
+  self.postMessage({ status: "loading", data: "Checking WebGPU support..." });
 
   try {
+    // First check for WebGPU support
+    console.log('Running WebGPU check');
+    const adapter = await navigator.gpu.requestAdapter();
+    console.log('Got adapter:', adapter);
+    if (!adapter) {
+      throw new Error("WebGPU is not supported (no adapter found)");
+    }
+    
+    // If we get here, WebGPU is supported, so proceed with loading the model
+    self.postMessage({ status: "loading", data: "Loading model..." });
+
     const [tokenizer, model] = await TextGenerationPipeline.getInstance(handleProgress);
     console.log('Model loaded successfully');
     
