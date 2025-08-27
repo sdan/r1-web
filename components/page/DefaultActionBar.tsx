@@ -138,43 +138,56 @@ const DefaultActionBar: React.FC<DefaultActionBarProps> = ({ items = [] }) => {
             ),
           },
           {
+            hotkey: '⌃+R',
+            openHotkey: 'ctrl+r',
+            body: (
+              <a
+                href="https://github.com/sdan/r1-web"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GITHUB
+              </a>
+            ),
+          },
+          {
             hotkey: '⌃+T',
             body: 'Theme',
             openHotkey: 'ctrl+t',
             items: [
               {
                 icon: '⊹',
-                children: 'Refined White [DEFAULT]',
+                children: 'Vanilla Bean Supreme [DEFAULT]',
                 onClick: () => Utilities.onHandleThemeChange(''),
               },
               {
                 icon: '⊹',
-                children: 'Black Midnight Vapor',
+                children: 'Midnight Espresso',
                 onClick: () => Utilities.onHandleThemeChange('theme-dark'),
               },
               {
                 icon: '⊹',
-                children: 'U-571 Code Red',
+                children: 'Strawberry Panic',
                 onClick: () => Utilities.onHandleThemeChange('theme-black-red'),
               },
               {
                 icon: '⊹',
-                children: 'Digital Bioluminescence',
+                children: 'Ocean Breeze Mint',
                 onClick: () => Utilities.onHandleThemeChange('theme-black-teal'),
               },
               {
                 icon: '⊹',
-                children: 'Operation Safe Blue',
+                children: 'Blueberry Muffin',
                 onClick: () => Utilities.onHandleThemeChange('theme-blue'),
               },
               {
                 icon: '⊹',
-                children: 'Neon Green Garden',
+                children: 'Matcha Latte Dreams',
                 onClick: () => Utilities.onHandleThemeChange('theme-green'),
               },
               {
                 icon: '⊹',
-                children: 'Kirkland Signature AS/400',
+                children: 'Retro Terminal Vibes',
                 onClick: () => Utilities.onHandleThemeChange('theme-black-green'),
               },
             ],

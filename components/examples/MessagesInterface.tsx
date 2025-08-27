@@ -457,37 +457,37 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = ({
           <>
             <Avatar src="/C714D780-B4A0-46A5-BC62-0187C130284D_1_105_c.jpeg">
               <Indent>
-                Oai
+                Archon
                 <br />
-                <ChatPreviewInline>The smallest seed of an idea can grow to define or destroy you</ChatPreviewInline>
+                <ChatPreviewInline>Orchestrating the diffusion of intelligence across every sector</ChatPreviewInline>
               </Indent>
             </Avatar>
-            <Avatar src="/pravalogo.png">
+            <Avatar src="https://prava.co/outputpravalogo.jpg">
               <Indent>
-                Eas
+                Prava
                 <br />
-                <ChatPreviewInline>You're waiting for a train...</ChatPreviewInline>
+                <ChatPreviewInline>Transforming careers through autonomous workflow systems</ChatPreviewInline>
               </Indent>
             </Avatar>
             <Avatar src="https://plugins.sdan.io/_next/image?url=%2Fimages%2Fpdf-logo.png&w=256&q=75">
               <Indent>
-                Bean
+                Catalyst
                 <br />
-                <ChatPreviewInline>Paradox could collapse the dream</ChatPreviewInline>
+                <ChatPreviewInline>Accelerating the economic integration of artificial general intelligence</ChatPreviewInline>
               </Indent>
             </Avatar>
             <Avatar src="/channels4_profile.jpg">
               <Indent>
-                Cook
+                Engine
                 <br />
-                <ChatPreviewInline>I will not follow in my father's footsteps</ChatPreviewInline>
+                <ChatPreviewInline>Reimagining human potential in the age of intelligent automation</ChatPreviewInline>
               </Indent>
             </Avatar>
-            <Avatar src="https://sdan.io/surya_low.jpeg">
+            <Avatar src="https://prava.co/logo%20copy%204.png">
               <Indent>
-                Ed
+                Nexus
                 <br />
-                <ChatPreviewInline>Those aren't my memories</ChatPreviewInline>
+                <ChatPreviewInline>Bridging the gap between AGI capabilities and market deployment</ChatPreviewInline>
               </Indent>
             </Avatar>
           </>
@@ -495,9 +495,9 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = ({
       >
         {messages.map((msg, i) => (
           msg.role === 'user' ? (
-            <Message key={i}>{msg.content}</Message>
+            <Message key={`user-${i}-${msg.content.slice(0, 10)}`}>{msg.content}</Message>
           ) : (
-            <MessageViewer key={i}>{msg.content}</MessageViewer>
+            <MessageViewer key={`assistant-${i}-${msg.content.slice(0, 10)}`}>{msg.content}</MessageViewer>
           )
         ))}
         

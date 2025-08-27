@@ -15,10 +15,12 @@ const ButtonGroup = (props) => {
 
   return (
     <div className={Utilities.classNames(styles.root, props.isFull ? styles.full : null)}>
-      {props.items.map((each) => {
+      {props.items.map((each, index) => {
+        const uniqueKey = each.hotkey || each.openHotkey || `button-${index}`;
+        
         if (each.items) {
           return (
-            <DropdownMenuTrigger key={each.body} items={each.items} hotkey={each.openHotkey}>
+            <DropdownMenuTrigger key={`dropdown-${uniqueKey}`} items={each.items} hotkey={each.openHotkey}>
               <ActionButton hotkey={each.hotkey} isSelected={each.selected}>
                 {each.body}
               </ActionButton>
@@ -27,7 +29,7 @@ const ButtonGroup = (props) => {
         }
 
         return (
-          <ActionButton key={each.body} onClick={each.onClick} hotkey={each.hotkey} isSelected={each.selected}>
+          <ActionButton key={`action-${uniqueKey}`} onClick={each.onClick} hotkey={each.hotkey} isSelected={each.selected}>
             {each.body}
           </ActionButton>
         );

@@ -45,9 +45,20 @@ class TextGenerationPipeline {
       return [this.tokenizer, this.model];
     } catch (error) {
       console.error('Failed to load model:', error);
+      let errorMessage = error?.message || error?.toString() || `Unknown error (${typeof error}): ${JSON.stringify(error)}`;
+      
+      // Handle specific ONNX/WebGPU errors
+      if (errorMessage.includes('3944596720') || errorMessage.includes('WebGPU')) {
+        errorMessage = 'WebGPU device creation failed. Try refreshing the page or check your GPU drivers.';
+      } else if (errorMessage.includes('onnxruntime') || errorMessage.includes('session')) {
+        errorMessage = 'Model initialization failed. The model may be corrupted or incompatible.';
+      } else if (errorMessage.includes('memory') || errorMessage.includes('OOM')) {
+        errorMessage = 'Insufficient GPU memory. Try closing other tabs or use a device with more VRAM.';
+      }
+      
       self.postMessage({
         status: "error",
-        data: `Model loading failed: ${error.message}`
+        data: `Model loading failed: ${errorMessage}`
       });
       throw error;
     }
@@ -186,9 +197,10 @@ async function load() {
     self.postMessage({ status: "ready" });
   } catch (error) {
     console.error('Model load failed:', error);
+    const errorMessage = error?.message || error?.toString() || `Unknown error (${typeof error}): ${JSON.stringify(error)}`;
     self.postMessage({
       status: "error",
-      data: `Model load failed: ${error.message}`
+      data: `Model load failed: ${errorMessage}`
     });
   }
 }
