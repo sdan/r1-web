@@ -11,7 +11,8 @@ import Navigation from '@components/Navigation';
 import RowEllipsis from '@components/RowEllipsis';
 import SidebarLayout from '@components/SidebarLayout';
 import Button from '@components/Button';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import messageViewerStyles from '@components/MessageViewer.module.scss';
 
 import * as React from 'react';
 
@@ -20,6 +21,8 @@ interface MessagesInterfaceProps {
   onSend: (message: string) => void
   isRunning: boolean
   onInterrupt: () => void
+  assistantThought?: string
+  assistantState?: 'idle' | 'thinking' | 'answering'
 }
 
 const ChatPreviewInline = (props) => {
@@ -30,9 +33,17 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = ({
   messages, 
   onSend,
   isRunning,
-  onInterrupt 
+  onInterrupt,
+  assistantThought,
+  assistantState
 }) => {
   const [inputValue, setInputValue] = useState('')
+  const thoughtRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!assistantThought || !thoughtRef.current) return
+    const el = thoughtRef.current
+    el.scrollTop = el.scrollHeight
+  }, [assistantThought])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -493,29 +504,82 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = ({
           </>
         }
       >
-        {messages.map((msg, i) => (
-          msg.role === 'user' ? (
-            <Message key={`user-${i}-${msg.content.slice(0, 10)}`}>{msg.content}</Message>
-          ) : (
-            <MessageViewer key={`assistant-${i}-${msg.content.slice(0, 10)}`}>{msg.content}</MessageViewer>
+        {messages.map((msg, i) => {
+          const key = `${msg.role}-${i}-${msg.content.slice(0, 10)}`
+          const isLastAssistant = msg.role === 'assistant' && i === messages.length - 1
+          const hasThought = Boolean(assistantThought?.trim())
+          const hasAssistantContent = msg.role === 'assistant' && Boolean(msg.content?.trim())
+          const isThinkingOrAnswering = assistantState !== 'idle'
+          const showThoughtInline = isLastAssistant && (isThinkingOrAnswering || hasThought)
+          const showAssistantBubble = msg.role === 'assistant' && hasAssistantContent
+          const thoughtHeading = assistantState === 'answering' || (!isThinkingOrAnswering && hasThought)
+            ? 'Thinking (captured)'
+            : 'Thinking'
+          const thoughtBody = hasThought ? assistantThought : 'Thinking...'
+
+          const thoughtBubble = showThoughtInline ? (
+            <MessageViewer
+              bubbleClassName={messageViewerStyles.thinkingBubble}
+              triangleClassName={`${messageViewerStyles.thinkingTriangle} ${messageViewerStyles.thinkingTriangleHidden}`}
+            >
+              <div
+                ref={thoughtRef}
+                style={{
+                  maxHeight: '120px',
+                  minHeight: '80px',
+                  overflowY: 'auto',
+                  scrollBehavior: 'smooth',
+                  overscrollBehavior: 'contain',
+                  WebkitOverflowScrolling: 'touch',
+                  padding: '2px 0',
+                }}
+              >
+                <div style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.6, marginBottom: '6px' }}>
+                  {thoughtHeading}
+                </div>
+                <div style={{ whiteSpace: 'pre-wrap', opacity: assistantState === 'answering' ? 0.8 : 1 }}>
+                  {thoughtBody}
+                </div>
+              </div>
+            </MessageViewer>
+          ) : null
+
+          if (msg.role === 'user') {
+            return <Message key={key}>{msg.content}</Message>
+          }
+
+          return (
+            <React.Fragment key={key}>
+              {thoughtBubble}
+              {showAssistantBubble && <MessageViewer>{msg.content}</MessageViewer>}
+            </React.Fragment>
           )
-        ))}
+        })}
         
         <form onSubmit={handleSubmit}>
-          <Input 
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            disabled={isRunning}
-            isBlink={!isRunning}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <Input 
+              value={inputValue}
+              placeholder="Type a message and press Enter"
+              onChange={(e) => setInputValue(e.target.value)}
+              disabled={isRunning}
+              isBlink={!isRunning}
+            />
+            <div style={{ display: 'flex', gap: '1ch', alignItems: 'center', opacity: 0.7, fontSize: '12px' }}>
+              <span>↵ Enter to send</span>
+              <span>•</span>
+              <span>Esc to blur</span>
+            </div>
+          </div>
         </form>
-        <ActionButton 
-          onClick={onInterrupt} 
-          disabled={!isRunning}
-          style={{ marginLeft: '1ch' }}
-        >
-          {isRunning ? 'STOP' : 'IDLE'}
-        </ActionButton>
+        {isRunning ? (
+          <ActionButton 
+            onClick={onInterrupt} 
+            style={{ marginLeft: '1ch' }}
+          >
+            STOP
+          </ActionButton>
+        ) : null}
       </SidebarLayout>
     </div>
   );

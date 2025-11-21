@@ -1,6 +1,6 @@
 # r1-web
 
-`DeepSeek-R1-Distill-Qwen-1.5B-ONNX` model entirely client-side using webgpu
+`Qwen3-0.6B-ONNX` model entirely client-side using webgpu
 
 ## reqs
 

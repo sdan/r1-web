@@ -25,7 +25,7 @@ async function check() {
 }
 
 class TextGenerationPipeline {
-  static model_id = "onnx-community/DeepSeek-R1-Distill-Qwen-1.5B-ONNX";
+  static model_id = "onnx-community/Qwen3-0.6B-ONNX";
 
   static async getInstance(progress_callback = null) {
     console.log('Getting pipeline instance');
@@ -41,7 +41,7 @@ class TextGenerationPipeline {
         progress_callback,
       });
       console.log('Model loaded successfully');
-      
+
       return [this.tokenizer, this.model];
     } catch (error) {
       console.error('Failed to load model:', error);
@@ -79,15 +79,11 @@ async function generate(messages) {
   });
   console.log('Applied chat template:', inputs);
 
-  const [START_THINKING_TOKEN_ID, END_THINKING_TOKEN_ID] = tokenizer.encode("<think></think>", {
-    add_special_tokens: false,
-  });
-  console.log('Thinking tokens:', START_THINKING_TOKEN_ID, END_THINKING_TOKEN_ID);
-
   let state = "thinking";
   let startTime;
   let numTokens = 0;
   let tps;
+  let rawBuffer = "";
 
   const token_callback_function = (tokens) => {
     console.log('Token callback:', tokens);
@@ -96,17 +92,36 @@ async function generate(messages) {
       tps = (numTokens / (performance.now() - startTime)) * 1000;
       console.log('Current TPS:', tps);
     }
-    if (tokens[0] === END_THINKING_TOKEN_ID) {
-      console.log('Switching to answering state');
-      state = "answering";
-    }
   };
 
   const callback_function = (output) => {
     console.log('Output callback:', output);
+    rawBuffer += output;
+
+    // Split thinking vs answer based on <think> ... </think>
+    let thought = '';
+    let answer = rawBuffer;
+    const start = rawBuffer.indexOf('<think>');
+    const end = rawBuffer.indexOf('</think>');
+
+    if (start !== -1) {
+      if (end !== -1 && end > start) {
+        thought = rawBuffer.slice(start + 7, end).trim();
+        answer = rawBuffer.slice(end + 8);
+        state = "answering";
+      } else {
+        thought = rawBuffer.slice(start + 7);
+        answer = rawBuffer.slice(0, start);
+        state = "thinking";
+      }
+    } else {
+      state = "answering";
+    }
+
     self.postMessage({
       status: "update",
-      output,
+      output: answer,
+      thought,
       tps,
       numTokens,
       state,
@@ -144,11 +159,14 @@ function handleProgress(event) {
   console.log('Progress event:', event);
   if (!event.total) return;
 
+  const friendlyName = "Qwen3-0.6B-ONNX";
+  const fileLabel = event.url || friendlyName;
+
   if (event.loaded === 0) {
     console.log('Starting file load:', event.url);
     self.postMessage({
       status: "initiate",
-      file: event.url || "model data",
+      file: fileLabel,
       progress: 0,
       total: event.total,
     });
@@ -157,7 +175,7 @@ function handleProgress(event) {
     console.log(`Loading progress: ${percent}%`);
     self.postMessage({
       status: "progress", 
-      file: event.url || "model data",
+      file: fileLabel,
       progress: percent,
       total: 100,
     });
@@ -165,7 +183,7 @@ function handleProgress(event) {
     console.log('File load complete:', event.url);
     self.postMessage({
       status: "done",
-      file: event.url || "model data",
+      file: fileLabel,
     });
   }
 }
@@ -184,7 +202,7 @@ async function load() {
     }
     
     // If we get here, WebGPU is supported, so proceed with loading the model
-    self.postMessage({ status: "loading", data: "Loading model..." });
+    self.postMessage({ status: "loading", data: "Loading Qwen3-0.6B-ONNX..." });
 
     const [tokenizer, model] = await TextGenerationPipeline.getInstance(handleProgress);
     console.log('Model loaded successfully');

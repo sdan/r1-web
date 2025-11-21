@@ -33,3 +33,18 @@
   border-left: 1ch solid var(--theme-focused-foreground);
   margin-bottom: calc((var(--font-size) * var(--theme-line-height-base)) / 2);
 }
+
+.thinkingBubble {
+  background: linear-gradient(180deg, rgba(110, 255, 180, 0.12), rgba(110, 255, 180, 0.04));
+  border: 1px solid rgba(110, 255, 180, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(110, 255, 180, 0.12), 0 12px 28px -24px rgba(0, 0, 0, 0.9);
+  color: var(--theme-text);
+}
+
+.thinkingTriangle {
+  border-left-color: rgba(110, 255, 180, 0.5);
+}
+
+.thinkingTriangleHidden {
+  display: none !important;
+}

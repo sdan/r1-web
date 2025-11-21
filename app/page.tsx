@@ -13,19 +13,16 @@ import ActionListItem from '@components/ActionListItem';
 import AlertBanner from '@components/AlertBanner';
 import AS400 from '@components/examples/AS400';
 import Avatar from '@components/Avatar';
-import Badge from '@components/Badge';
 import BarLoader from '@components/BarLoader';
 import BarProgress from '@components/BarProgress';
 import Block from '@components/Block';
 import BlockLoader from '@components/BlockLoader';
 import Breadcrumbs from '@components/BreadCrumbs';
-import Button from '@components/Button';
 import ButtonGroup from '@components/ButtonGroup';
 import Card from '@components/Card';
 import CardDouble from '@components/CardDouble';
 import Checkbox from '@components/Checkbox';
 import Chessboard from '@components/Chessboard';
-import CodeBlock from '@components/CodeBlock';
 import ContentFluid from '@components/ContentFluid';
 import ComboBox from '@components/ComboBox';
 import DataTable from '@components/DataTable';
@@ -36,7 +33,6 @@ import DefaultActionBar from '@components/page/DefaultActionBar';
 import DefaultLayout from '@components/page/DefaultLayout';
 import Denabase from '@components/examples/Denabase';
 import Dialog from '@components/Dialog';
-import Divider from '@components/Divider';
 import Drawer from '@components/Drawer';
 import DropdownMenuTrigger from '@components/DropdownMenuTrigger';
 import Grid from '@components/Grid';
@@ -61,8 +57,6 @@ import Navigation from '@components/Navigation';
 import NumberRangeSlider from '@components/NumberRangeSlider';
 import Package from '@root/package.json';
 import RadioButtonGroup from '@components/RadioButtonGroup';
-import Row from '@components/Row';
-import RowSpaceBetween from '@components/RowSpaceBetween';
 import Script from 'next/script';
 import Select from '@components/Select';
 import SidebarLayout from '@components/SidebarLayout';
@@ -73,9 +67,8 @@ import Text from '@components/Text';
 import TextArea from '@components/TextArea';
 import TreeView from '@components/TreeView';
 import UpdatingDataTable from '@components/examples/UpdatingDataTable';
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { InterruptableStoppingCriteria } from '@huggingface/transformers'
-import GPUMonitor from '@components/GPUMonitor';
 import TPSCycleTable from '@components/examples/TPSCycleTable';
 
 export const dynamic = 'force-static';
@@ -111,12 +104,17 @@ interface MessageType {
 export default function ChatPage() {
   const worker = useRef<Worker | null>(null)
   const [messages, setMessages] = useState<MessageType[]>([])
+  const messagesRef = useRef<MessageType[]>([])
   const [isRunning, setIsRunning] = useState(false)
   const [tpsValue, setTpsValue] = useState<number | null>(null)
   const [webGPUSupported, setWebGPUSupported] = useState<boolean>(true)
   const [loadingProgress, setLoadingProgress] = useState<number>(0)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [loadingFile, setLoadingFile] = useState<string>('')
+  const [pendingQueue, setPendingQueue] = useState<MessageType[][]>([])
+  const [workerReady, setWorkerReady] = useState(false)
+  const [assistantThought, setAssistantThought] = useState<string>('')
+  const [assistantState, setAssistantState] = useState<'idle' | 'thinking' | 'answering'>('idle')
   const [browserInfo, setBrowserInfo] = useState<{
     isMobile: boolean
     browserName: string
@@ -131,6 +129,27 @@ export default function ChatPage() {
     failureReason: ''
   })
   const stoppingCriteria = useRef(new InterruptableStoppingCriteria())
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  const flushQueue = useCallback(() => {
+    if (!workerReady || isLoading || isRunning) return
+    setPendingQueue(prev => {
+      if (prev.length === 0) return prev
+      const [next, ...rest] = prev
+      setIsRunning(true)
+      worker.current?.postMessage({
+        type: 'generate',
+        data: next,
+      })
+      return rest
+    })
+  }, [isLoading, isRunning, workerReady])
+
+  useEffect(() => {
+    flushQueue()
+  }, [pendingQueue, isLoading, isRunning, workerReady, flushQueue])
 
   useEffect(() => {
     // Comprehensive browser and device detection
@@ -286,6 +305,7 @@ export default function ChatPage() {
     worker.current = new Worker(new URL('../public/worker.js', import.meta.url), {
       type: 'module'
     })
+    setWorkerReady(false)
 
     const onMessage = (e: MessageEvent) => {
       switch (e.data.status) {
@@ -297,7 +317,7 @@ export default function ChatPage() {
         case 'progress':
           setIsLoading(true)
           setLoadingProgress(e.data.progress || 0)
-          setLoadingFile(e.data.file || 'model data')
+          setLoadingFile(e.data.file || 'Qwen3-0.6B-ONNX')
           break
         case 'done':
           setLoadingProgress(100)
@@ -306,27 +326,41 @@ export default function ChatPage() {
           setIsLoading(false)
           setLoadingProgress(0)
           setLoadingFile('')
+          setWorkerReady(true)
+          setAssistantState('idle')
+          flushQueue()
           break
         case 'start':
           setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+          setAssistantThought('')
+          setAssistantState('thinking')
           break
         case 'update':
           // Update TPS
           if (typeof e.data.tps === 'number') {
             setTpsValue(e.data.tps)
           }
+          if (typeof e.data.thought === 'string') {
+            setAssistantThought(e.data.thought)
+          }
+          if (typeof e.data.state === 'string') {
+            setAssistantState(e.data.state as 'thinking' | 'answering')
+          }
           // Build the assistant's streaming message
           setMessages(prev => {
             const last = prev.at(-1)
             if (!last) return prev
+            const answer = typeof e.data.output === 'string' ? e.data.output : last.content
             return [
               ...prev.slice(0, -1), 
-              { ...last, content: last.content + e.data.output }
+              { ...last, content: answer }
             ]
           })
           break
         case 'complete':
           setIsRunning(false)
+          setAssistantState('idle')
+          flushQueue()
           break
         case 'error':
           // Handle error message from worker
@@ -336,6 +370,7 @@ export default function ChatPage() {
           }
           setIsLoading(false)
           setIsRunning(false)
+          setAssistantState('idle')
           break
       }
     }
@@ -351,12 +386,11 @@ export default function ChatPage() {
   }, [])
 
   const handleSend = (newMessage: string) => {
-    setMessages(prev => [...prev, { role: 'user', content: newMessage }])
-    setIsRunning(true)
-    worker.current?.postMessage({
-      type: 'generate',
-      data: [...messages, { role: 'user', content: newMessage }]
-    })
+    const conversation = [...messagesRef.current, { role: 'user', content: newMessage }]
+    setMessages(conversation)
+    messagesRef.current = conversation
+    setPendingQueue(prev => [...prev, conversation])
+    flushQueue()
   }
 
   const handleInterrupt = () => {
@@ -464,7 +498,7 @@ export default function ChatPage() {
             </Card>
           </AlertBanner>
         ) : (
-          <Accordion defaultValue={true} title="DEEPSEEK R-1 RUNNING LOCALLY IN YOUR BROWSER">
+          <Accordion defaultValue={true} title="QWEN3 RUNNING LOCALLY IN YOUR BROWSER">
             {isLoading && (
               <>
                 <br />
@@ -477,10 +511,6 @@ export default function ChatPage() {
                 </Card>
               </>
             )}
-            {/* <br />
-            <Card title="GPU UTILIZATION">
-              <GPUMonitor />
-            </Card> */}
             <br />
             <Card title="TPS (Tokens/Second)">
               <TPSCycleTable tpsValue={tpsValue || 0} />
@@ -492,78 +522,9 @@ export default function ChatPage() {
                 onSend={handleSend}
                 isRunning={isRunning}
                 onInterrupt={handleInterrupt}
+                assistantThought={assistantThought}
+                assistantState={assistantState}
               />
-            </Card>
-            <br />
-            <Card title="">
-              <div style={{ 
-                position: 'relative',
-                overflow: 'hidden',
-                padding: '40px 24px',
-                textAlign: 'left',
-                background: 'var(--theme-background)',
-                minHeight: '120px'
-              }}>
-                <div style={{
-                  position: 'absolute',
-                  top: '-20px',
-                  right: '-40px',
-                  width: '200px',
-                  height: '200px',
-                  backgroundImage: 'url(https://prava.co/outputpravalogo.jpg)',
-                  backgroundSize: 'contain',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'center',
-                  opacity: '0.08',
-                  zIndex: 0
-                }} />
-                
-                <div style={{ position: 'relative', zIndex: 1 }}>
-                  <Text style={{ 
-                    fontSize: '24px', 
-                    fontWeight: '300', 
-                    lineHeight: '1.3',
-                    marginBottom: '16px',
-                    letterSpacing: '-0.01em'
-                  }}>
-                    Exceptionally talented individuals.
-                  </Text>
-                  
-                  <Text style={{ 
-                    fontSize: '16px', 
-                    opacity: 0.7, 
-                    marginBottom: '24px',
-                    fontWeight: '400',
-                    lineHeight: '1.4'
-                  }}>
-                    We're training models to diffuse artificial general intelligence across every corner of the economy.
-                  </Text>
-                  
-                  <a
-                    href="https://prava.co/careers"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'inline-block',
-                      color: 'var(--theme-text)',
-                      textDecoration: 'none',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      borderBottom: '1px solid var(--theme-text)',
-                      paddingBottom: '2px',
-                      transition: 'opacity 0.2s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      e.target.style.opacity = '0.7';
-                    }}
-                    onMouseOut={(e) => {
-                      e.target.style.opacity = '1';
-                    }}
-                  >
-                    View careers
-                  </a>
-                </div>
-              </div>
             </Card>
             <br />
           </Accordion>

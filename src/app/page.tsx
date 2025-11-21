@@ -12,8 +12,8 @@ import GPUMonitor from '@components/examples/GPUMonitor';
 
 export async function generateMetadata() {
   return {
-    title: "DeepSeek-R1 WebGPU Chat",
-    description: "Locally running DeepSeek-R1 in your browser with WebGPU",
+    title: "Qwen3 WebGPU Chat",
+    description: "Locally running Qwen3 in your browser with WebGPU",
   };
 }
 
@@ -24,7 +24,7 @@ export default async function Page() {
       <DebugGrid />
       <DefaultActionBar />
       <Grid>
-        <Accordion defaultValue={true} title="DEEPSEEK R-1 RUNNING LOCALLY IN YOUR BROWSER">
+        <Accordion defaultValue={true} title="QWEN3 RUNNING LOCALLY IN YOUR BROWSER">
           <br />
           <Card title="GPU UTILIZATION">
             <GPUMonitor />
