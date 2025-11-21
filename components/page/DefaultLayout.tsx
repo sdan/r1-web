@@ -8,9 +8,23 @@ interface DefaultLayoutProps {
 }
 
 const DefaultLayout: React.FC<DefaultLayoutProps> = ({ previewPixelSRC, children }) => {
+  // Check if the source is a video file
+  const isVideo = /\.(mp4|webm|ogg)$/i.test(previewPixelSRC);
+
   return (
     <div className={styles.body}>
-      <img className={styles.pixel} src={previewPixelSRC} alt="" />
+      {isVideo ? (
+        <video 
+          className={styles.pixel} 
+          src={previewPixelSRC} 
+          controls 
+          autoPlay 
+          loop 
+          muted
+        />
+      ) : (
+        <img className={styles.pixel} src={previewPixelSRC} alt="" />
+      )}
       {children}
     </div>
   );
