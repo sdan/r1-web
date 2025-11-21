@@ -8,13 +8,19 @@ import Message from '@components/Message';
 import MessageViewer from '@components/MessageViewer';
 import ModalError from '@components/modals/ModalError';
 import Navigation from '@components/Navigation';
-import RowEllipsis from '@components/RowEllipsis';
 import SidebarLayout from '@components/SidebarLayout';
-import Button from '@components/Button';
 import { useEffect, useRef, useState } from 'react';
 import messageViewerStyles from '@components/MessageViewer.module.scss';
 
 import * as React from 'react';
+
+interface CharacterOption {
+  id: string
+  name: string
+  avatarSrc?: string
+  tagline: string
+  prompt?: string
+}
 
 interface MessagesInterfaceProps {
   messages: Array<{ role: string; content: string }>
@@ -23,11 +29,10 @@ interface MessagesInterfaceProps {
   onInterrupt: () => void
   assistantThought?: string
   assistantState?: 'idle' | 'thinking' | 'answering'
+  characters: CharacterOption[]
+  activeCharacterId: string | null
+  onSelectCharacter: (characterId: string | null) => void
 }
-
-const ChatPreviewInline = (props) => {
-  return <RowEllipsis style={{ opacity: 0.5, marginBottom: `10px` }}>{props.children}</RowEllipsis>;
-};
 
 const MessagesInterface: React.FC<MessagesInterfaceProps> = ({ 
   messages, 
@@ -35,10 +40,22 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = ({
   isRunning,
   onInterrupt,
   assistantThought,
-  assistantState
+  assistantState,
+  characters,
+  activeCharacterId,
+  onSelectCharacter,
 }) => {
   const [inputValue, setInputValue] = useState('')
   const thoughtRef = useRef<HTMLDivElement | null>(null)
+  const activeCharacter = characters.find((c) => c.id === activeCharacterId)
+
+  const handleCharacterKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, characterId: string | null) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelectCharacter(characterId)
+    }
+  }
+
   useEffect(() => {
     if (!assistantThought || !thoughtRef.current) return
     const el = thoughtRef.current
@@ -466,41 +483,52 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = ({
         isShowingHandle={true}
         sidebar={
           <>
-            <Avatar src="/C714D780-B4A0-46A5-BC62-0187C130284D_1_105_c.jpeg">
-              <Indent>
-                Archon
-                <br />
-                <ChatPreviewInline>Orchestrating the diffusion of intelligence across every sector</ChatPreviewInline>
-              </Indent>
-            </Avatar>
-            <Avatar src="https://prava.co/outputpravalogo.jpg">
-              <Indent>
-                Prava
-                <br />
-                <ChatPreviewInline>Transforming careers through autonomous workflow systems</ChatPreviewInline>
-              </Indent>
-            </Avatar>
-            <Avatar src="https://plugins.sdan.io/_next/image?url=%2Fimages%2Fpdf-logo.png&w=256&q=75">
-              <Indent>
-                Catalyst
-                <br />
-                <ChatPreviewInline>Accelerating the economic integration of artificial general intelligence</ChatPreviewInline>
-              </Indent>
-            </Avatar>
-            <Avatar src="/channels4_profile.jpg">
-              <Indent>
-                Engine
-                <br />
-                <ChatPreviewInline>Reimagining human potential in the age of intelligent automation</ChatPreviewInline>
-              </Indent>
-            </Avatar>
-            <Avatar src="https://prava.co/logo%20copy%204.png">
-              <Indent>
-                Nexus
-                <br />
-                <ChatPreviewInline>Bridging the gap between AGI capabilities and market deployment</ChatPreviewInline>
-              </Indent>
-            </Avatar>
+            {characters.map((character) => {
+              const isActive = character.id === activeCharacterId
+              return (
+                <div
+                  key={character.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSelectCharacter(isActive ? null : character.id)}
+                  onKeyDown={(e) => handleCharacterKeyDown(e, isActive ? null : character.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    maxWidth: '220px',
+                    border: isActive ? '1px solid var(--theme-focused-foreground)' : '1px solid transparent',
+                    borderRadius: '8px',
+                    padding: '6px 8px',
+                    marginBottom: '8px',
+                    background: isActive ? 'var(--theme-foreground)' : 'transparent',
+                    cursor: 'pointer',
+                    transition: 'border 120ms ease, background 120ms ease',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Avatar src={character.avatarSrc}>
+                    <Indent
+                      style={{
+                        display: 'block',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '160px',
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {character.name} {isActive ? '✦' : ''}
+                      </div>
+                      <div style={{ fontSize: '12px', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {character.tagline}
+                      </div>
+                    </Indent>
+                  </Avatar>
+                </div>
+              )
+            })}
           </>
         }
       >
@@ -560,7 +588,7 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <Input 
               value={inputValue}
-              placeholder="Type a message and press Enter"
+              placeholder={`Type a message for ${activeCharacter?.name || 'your buddy'} and press Enter`}
               onChange={(e) => setInputValue(e.target.value)}
               disabled={isRunning}
               isBlink={!isRunning}

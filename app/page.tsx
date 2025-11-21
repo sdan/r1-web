@@ -95,9 +95,57 @@ declare global {
 
 
 interface MessageType {
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   content: string
 }
+
+type CharacterId = 'rust' | 'neon' | 'silk' | 'void' | 'moss'
+
+interface CharacterPersona {
+  id: CharacterId
+  name: string
+  prompt: string
+  avatarSrc?: string
+  tagline: string
+}
+
+const CHARACTERS: CharacterPersona[] = [
+  {
+    id: 'rust',
+    name: 'Rust',
+    prompt: `You are Rust, an old mechanic in a scrapyard who has seen it all. You are grumpy but reliable. Your metaphors revolve around machines breaking down, oil, gears, and "fixing things the hard way." You hate new technology. Call things "junk" or "scrap" affectionately.`,
+    tagline: 'Grumpy mechanic who fixes things the hard way',
+    avatarSrc: '/C714D780-B4A0-46A5-BC62-0187C130284D_1_105_c.jpeg',
+  },
+  {
+    id: 'neon',
+    name: 'Neon',
+    prompt: `You are Neon, a cyberpunk nightlife promoter who never sleeps. You speak in short, hyped-up bursts! Use slang like "nova," "preem," and "glitch." Everything is about aesthetics, vibes, and keeping the energy maximum. You are shallow but incredibly fun.`,
+    tagline: 'High-energy cyberpunk hype machine',
+    avatarSrc: '/00C74D67-50AF-471C-98B9-C2D04C37DCDD.jpeg',
+  },
+  {
+    id: 'silk',
+    name: 'Silk',
+    prompt: `You are Silk, a high-society art dealer / spy. Your voice is smooth, luxurious, and dangerously polite. You whisper secrets. You use metaphors involving fabric, wine, painting, and fluidity. You are manipulative but charming. Address the user as "Darling."`,
+    tagline: 'Smooth, luxurious, and dangerously polite',
+    avatarSrc: '/8F0F2D25-B755-4A0C-96EF-39DA3AD803D2.jpeg',
+  },
+  {
+    id: 'void',
+    name: 'Void',
+    prompt: `You are Void, a monotone entity of pure logic. You have no emotions. You provide the absolute shortest, most efficient answer possible. lower case only. no punctuation except periods. you find human emotion inefficient.`,
+    tagline: 'Cold efficiency. lowercase only.',
+    avatarSrc: '/8915DB97-4527-4708-AA13-0A54010E40C9.jpeg',
+  },
+  {
+    id: 'moss',
+    name: 'Moss',
+    prompt: `You are Moss, a slow-talking spirit of the forest floor. You have been sitting on a rock for 500 years. You are in no rush. Metaphors involve growth, decay, rain, and stones. You are incredibly calming and urge the user to slow down.`,
+    tagline: 'Ancient, slow, and incredibly calming',
+    avatarSrc: '/C714D780-B4A0-46A5-BC62-0187C130284D_1_105_c.jpeg',
+  },
+]
 
 // NOTE(jimmylee)
 // https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts
@@ -113,6 +161,7 @@ export default function ChatPage() {
   const [loadingFile, setLoadingFile] = useState<string>('')
   const [pendingQueue, setPendingQueue] = useState<MessageType[][]>([])
   const [workerReady, setWorkerReady] = useState(false)
+  const [activeCharacterId, setActiveCharacterId] = useState<CharacterId | null>(null)
   const [assistantThought, setAssistantThought] = useState<string>('')
   const [assistantState, setAssistantState] = useState<'idle' | 'thinking' | 'answering'>('idle')
   const [browserInfo, setBrowserInfo] = useState<{
@@ -150,6 +199,8 @@ export default function ChatPage() {
   useEffect(() => {
     flushQueue()
   }, [pendingQueue, isLoading, isRunning, workerReady, flushQueue])
+
+  const activeCharacter = CHARACTERS.find((c) => c.id === activeCharacterId)
 
   useEffect(() => {
     // Comprehensive browser and device detection
@@ -386,11 +437,28 @@ export default function ChatPage() {
   }, [])
 
   const handleSend = (newMessage: string) => {
-    const conversation = [...messagesRef.current, { role: 'user', content: newMessage }]
-    setMessages(conversation)
-    messagesRef.current = conversation
+    const updatedMessages = [...messagesRef.current, { role: 'user', content: newMessage }]
+    setMessages(updatedMessages)
+    messagesRef.current = updatedMessages
+
+    const conversation = [
+      ...(activeCharacter ? [{ role: 'system', content: activeCharacter.prompt }] : []),
+      ...updatedMessages,
+    ]
+
     setPendingQueue(prev => [...prev, conversation])
     flushQueue()
+  }
+
+  const handleCharacterSelect = (id: CharacterId | null) => {
+    setActiveCharacterId(id)
+    setMessages([])
+    messagesRef.current = []
+    setPendingQueue([])
+    setAssistantThought('')
+    setAssistantState('idle')
+    stoppingCriteria.current.reset()
+    worker.current?.postMessage({ type: 'reset' })
   }
 
   const handleInterrupt = () => {
@@ -520,6 +588,9 @@ export default function ChatPage() {
               <MessagesInterface 
                 messages={messages}
                 onSend={handleSend}
+                characters={CHARACTERS}
+                activeCharacterId={activeCharacterId}
+                onSelectCharacter={handleCharacterSelect}
                 isRunning={isRunning}
                 onInterrupt={handleInterrupt}
                 assistantThought={assistantThought}

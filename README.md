@@ -1,6 +1,8 @@
-# r1-web
+# qwen-web
 
-`Qwen3-0.6B-ONNX` model entirely client-side using webgpu
+Run Qwen LLMs locally in your browser with WebGPU. Zero installation, instant AI chat.
+
+Live at: [qwen-web.sdan.io](https://qwen-web.sdan.io)
 
 ## reqs
 
