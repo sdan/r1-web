@@ -1,6 +1,6 @@
 # qwen-web
 
-Run Qwen LLMs locally in your browser with WebGPU. Zero installation, instant AI chat.
+Run Qwen3-0.6b locally in your browser with WebGPU. Zero installation, logging, or analytics.
 
 Live at: [qwen-web.sdan.io](https://qwen-web.sdan.io)
 
