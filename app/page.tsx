@@ -211,47 +211,64 @@ export default function ChatPage() {
 
   useEffect(() => {
     // Comprehensive browser and device detection
+    // WebGPU Mobile Support (2025):
+    // ✅ iOS 18+ Safari - Full support
+    // ❌ Android - Experimental flags only, not production-ready
+    // ❌ iOS Chrome/Firefox - Use WebKit wrapper without WebGPU
     const detectEnvironment = () => {
       const userAgent = navigator.userAgent.toLowerCase();
       const platform = navigator.platform?.toLowerCase() || '';
-      
+
+      // iOS version detection
+      const getIOSVersion = (): number | null => {
+        const match = userAgent.match(/os (\d+)_/i); // Matches "OS 18_0" format in iOS user agents
+        if (match) return parseInt(match[1], 10);
+        return null;
+      };
+
       // Mobile detection - more accurate approach with DevTools detection
       const isMobile = (() => {
         // Detect if we're in Chrome DevTools device emulation mode
-        const isDevToolsEmulation = platform === 'macintel' && userAgent.includes('mobile') && 
+        const isDevToolsEmulation = platform === 'macintel' && userAgent.includes('mobile') &&
                                    userAgent.includes('android');
-        
+
         // If using DevTools emulation, treat as desktop
         if (isDevToolsEmulation) {
           console.log('Detected Chrome DevTools device emulation - treating as desktop');
           return false;
         }
-        
+
         // Check user agent for mobile keywords
         const mobileRegex = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i;
         if (mobileRegex.test(userAgent)) return true;
-        
+
         // iPad specific check (since iPad user agents don't contain "mobile")
         if (/ipad/i.test(userAgent) || (/macintosh/i.test(userAgent) && navigator.maxTouchPoints > 0)) {
           return true;
         }
-        
+
         // Check screen size as additional indicator (mobile screens are typically smaller)
         // But be more lenient to avoid catching tablet/desktop browsers in small windows
         if (window.screen && window.screen.width < 480) return true;
-        
+
         // Check for mobile-specific platform strings
         if (/android|iphone|ipod|blackberry/i.test(platform)) return true;
-        
+
         return false;
       })();
-      
+
+      // Detect specific mobile OS
+      const isIOS = /iphone|ipad|ipod/i.test(userAgent) ||
+                    (/macintosh/i.test(userAgent) && navigator.maxTouchPoints > 0);
+      const isAndroid = /android/i.test(userAgent);
+      const iosVersion = isIOS ? getIOSVersion() : null;
+
       // Browser detection with version
       let browserName = 'Unknown';
       let version = 'Unknown';
       let isSupported = true; // Assume supported until we test
       let failureReason = '';
-      
+
       if (userAgent.includes('firefox')) {
         browserName = 'Firefox';
         const match = userAgent.match(/firefox\/(\d+)/);
@@ -274,16 +291,36 @@ export default function ChatPage() {
         version = match ? match[1] : 'Unknown';
         // Will test WebGPU availability below instead of version checking
       }
-      
+
       // Allow manual override via URL parameter
       const urlParams = new URLSearchParams(window.location.search);
       const forceDesktop = urlParams.get('desktop') === 'true';
-      
+
+      // Mobile blocking logic - allow iOS 18+ Safari, block everything else
       if (isMobile && !forceDesktop) {
-        isSupported = false;
-        failureReason = 'WebGPU is not supported on mobile devices';
+        if (isAndroid) {
+          isSupported = false;
+          failureReason = 'WebGPU is not supported on Android devices yet (experimental Chrome flags only)';
+        } else if (isIOS && browserName === 'Safari') {
+          if (iosVersion !== null && iosVersion >= 18) {
+            // iOS 18+ Safari supports WebGPU - let it through to actual testing
+            isSupported = true;
+            failureReason = '';
+          } else {
+            isSupported = false;
+            failureReason = `iOS ${iosVersion || 'Unknown'} detected - WebGPU requires iOS 18+ with Safari`;
+          }
+        } else if (isIOS) {
+          // iOS but not Safari (Chrome, Firefox, etc use WebKit wrapper without WebGPU)
+          isSupported = false;
+          failureReason = 'WebGPU on iOS requires Safari browser (other browsers use WebKit without WebGPU support)';
+        } else {
+          // Other mobile platforms
+          isSupported = false;
+          failureReason = 'WebGPU is not supported on this mobile device';
+        }
       }
-      
+
       // Debug logging
       console.log('Environment detection:', {
         userAgent,
@@ -291,10 +328,15 @@ export default function ChatPage() {
         screenWidth: window.screen?.width,
         maxTouchPoints: navigator.maxTouchPoints,
         isMobile,
+        isIOS,
+        isAndroid,
+        iosVersion,
         browserName,
-        version
+        version,
+        isSupported,
+        failureReason
       });
-      
+
       return { isMobile, browserName, version, isSupported, failureReason };
     };
 
@@ -575,11 +617,18 @@ export default function ChatPage() {
             {browserInfo.isMobile ? (
               <Card title="MOBILE DEVICE DETECTED">
                 <Text>
-                  📱 This application requires WebGPU, which is not supported on mobile devices yet.
+                  📱 WebGPU mobile support is very limited.
                   <br /><br />
-                  <strong>Use a desktop browser instead:</strong>
+                  <strong>✅ Supported:</strong>
+                  <br />• iPhone/iPad with iOS 18+ using Safari
+                  <br /><br />
+                  <strong>❌ Not Supported:</strong>
+                  <br />• Android devices (experimental flags only)
+                  <br />• iOS Chrome/Firefox (use Safari instead)
+                  <br />• iOS &lt; 18 (update to iOS 18+)
+                  <br /><br />
+                  <strong>Best Experience - Desktop:</strong>
                   <br />• Chrome 113+ (Recommended)
-                  <br />• Chrome Canary (Latest features)
                   <br />• Edge 113+
                 </Text>
               </Card>
@@ -597,12 +646,20 @@ export default function ChatPage() {
             ) : browserInfo.browserName === 'Safari' ? (
               <Card title="SAFARI USERS">
                 <Text>
-                  🧭 Safari's WebGPU support is experimental and limited.
+                  🧭 Safari WebGPU support varies by platform.
                   <br /><br />
-                  <strong>For best experience:</strong>
-                  <br />• Use Chrome 113+ (Recommended)
+                  <strong>✅ iOS 18+ (iPhone/iPad):</strong>
+                  <br />• Full WebGPU support in Safari
+                  <br />• Update to iOS 18 if on older version
+                  <br /><br />
+                  <strong>⚠️ macOS Safari:</strong>
+                  <br />• Limited/experimental WebGPU support
                   <br />• Try Safari Technology Preview
-                  <br />• Enable WebGPU in Develop menu
+                  <br />• Or use Chrome 113+ (Recommended)
+                  <br /><br />
+                  <strong>If WebGPU still doesn't work:</strong>
+                  <br />• Enable Develop menu in Safari Preferences
+                  <br />• Enable WebGPU in Develop &gt; Feature Flags
                 </Text>
               </Card>
             ) : (
@@ -625,16 +682,18 @@ export default function ChatPage() {
             <br />
             <Card title="SYSTEM REQUIREMENTS">
               <Text>
-                <strong>Minimum Requirements:</strong>
-                <br />• Desktop/laptop computer (not mobile)
+                <strong>Desktop (Recommended):</strong>
+                <br />• Windows 10/11 + Chrome 113+/Edge 113+
+                <br />• macOS + Chrome 113+/Edge 113+
+                <br />• Linux + Chrome 113+
                 <br />• Modern GPU with WebGPU support
                 <br />• 4GB+ RAM recommended
-                <br />• Chrome 113+ or Edge 113+
                 <br /><br />
-                <strong>Tested Configurations:</strong>
-                <br />• Windows 10/11 + Chrome
-                <br />• macOS + Chrome/Edge  
-                <br />• Linux + Chrome
+                <strong>Mobile (Limited):</strong>
+                <br />• ✅ iOS 18+ with Safari (iPhone/iPad)
+                <br />• ❌ Android (not supported)
+                <br />• ❌ iOS Chrome/Firefox (not supported)
+                <br />• Note: Slower performance and higher battery drain on mobile
               </Text>
             </Card>
             
