@@ -588,7 +588,7 @@ const MessagesInterface: React.FC<MessagesInterfaceProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <Input 
               value={inputValue}
-              placeholder={`Type a message for ${activeCharacter?.name || 'your buddy'} and press Enter`}
+              placeholder="Ask anything"
               onChange={(e) => setInputValue(e.target.value)}
               disabled={isRunning}
               isBlink={!isRunning}

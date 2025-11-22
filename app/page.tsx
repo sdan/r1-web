@@ -23,7 +23,6 @@ import Card from '@components/Card';
 import CardDouble from '@components/CardDouble';
 import Checkbox from '@components/Checkbox';
 import Chessboard from '@components/Chessboard';
-import ContentFluid from '@components/ContentFluid';
 import ComboBox from '@components/ComboBox';
 import DataTable from '@components/DataTable';
 import DatePicker from '@components/DatePicker';
@@ -33,7 +32,6 @@ import DefaultActionBar from '@components/page/DefaultActionBar';
 import DefaultLayout from '@components/page/DefaultLayout';
 import Denabase from '@components/examples/Denabase';
 import Dialog from '@components/Dialog';
-import Drawer from '@components/Drawer';
 import DropdownMenuTrigger from '@components/DropdownMenuTrigger';
 import Grid from '@components/Grid';
 import HoverComponentTrigger from '@components/HoverComponentTrigger';
@@ -59,7 +57,6 @@ import Package from '@root/package.json';
 import RadioButtonGroup from '@components/RadioButtonGroup';
 import Script from 'next/script';
 import Select from '@components/Select';
-import SidebarLayout from '@components/SidebarLayout';
 import Table from '@components/Table';
 import TableRow from '@components/TableRow';
 import TableColumn from '@components/TableColumn';
@@ -177,6 +174,16 @@ export default function ChatPage() {
     isSupported: true,
     failureReason: ''
   })
+  const [cacheInfo, setCacheInfo] = useState<{
+    size: number
+    itemCount: number
+    exists: boolean
+  }>({
+    size: 0,
+    itemCount: 0,
+    exists: false
+  })
+  const [isClearingCache, setIsClearingCache] = useState(false)
   const stoppingCriteria = useRef(new InterruptableStoppingCriteria())
   useEffect(() => {
     messagesRef.current = messages
@@ -466,11 +473,94 @@ export default function ChatPage() {
     worker.current?.postMessage({ type: 'interrupt' })
   }
 
+  // Cache management functions
+  const updateCacheInfo = async () => {
+    try {
+      if (typeof caches === 'undefined') {
+        setCacheInfo({ size: 0, itemCount: 0, exists: false })
+        return
+      }
+
+      const cache = await caches.open('transformers-cache')
+      const keys = await cache.keys()
+
+      let totalSize = 0
+      for (const request of keys) {
+        const response = await cache.match(request)
+        if (response) {
+          const blob = await response.blob()
+          totalSize += blob.size
+        }
+      }
+
+      setCacheInfo({
+        size: totalSize,
+        itemCount: keys.length,
+        exists: keys.length > 0
+      })
+    } catch (error) {
+      console.error('Failed to get cache info:', error)
+      setCacheInfo({ size: 0, itemCount: 0, exists: false })
+    }
+  }
+
+  const handleClearCache = async () => {
+    const sizeInMB = (cacheInfo.size / (1024 * 1024)).toFixed(2)
+    const confirmed = window.confirm(
+      `Clear model cache?\n\n` +
+      `This will delete ${cacheInfo.itemCount} cached file(s) (${sizeInMB}MB).\n` +
+      `You'll need to re-download the model on next use.\n\n` +
+      `Continue?`
+    )
+
+    if (!confirmed) return
+
+    setIsClearingCache(true)
+    try {
+      const deleted = await caches.delete('transformers-cache')
+      if (deleted) {
+        alert('Cache cleared successfully! The page will reload.')
+        window.location.reload()
+      } else {
+        alert('Cache not found or already cleared.')
+      }
+    } catch (error) {
+      console.error('Failed to clear cache:', error)
+      alert('Failed to clear cache. Check console for details.')
+    } finally {
+      setIsClearingCache(false)
+      updateCacheInfo()
+    }
+  }
+
+  // Update cache info on mount and after model loads
+  useEffect(() => {
+    updateCacheInfo()
+    // Update cache info periodically while loading
+    const interval = setInterval(() => {
+      if (isLoading) {
+        updateCacheInfo()
+      }
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [isLoading])
+
   return (
     <DefaultLayout previewPixelSRC="https://intdev-global.s3.us-west-2.amazonaws.com/My_movie_1.mp4">
       <br />
       <DebugGrid />
-      <DefaultActionBar />
+      <DefaultActionBar
+        items={[
+          {
+            body: isClearingCache ? 'CLEARING CACHE...' : 'CLEAR CACHE',
+            onClick: () => {
+              if (isClearingCache) return
+              handleClearCache()
+            },
+            selected: isClearingCache,
+          },
+        ]}
+      />
       <Grid>
         {!webGPUSupported ? (
           <AlertBanner>
