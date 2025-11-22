@@ -1,21 +1,45 @@
-.next
-.nova
+# Next.js build outputs
+out/
+.next/
+dist/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment files
 .env
 .env.local
+.env*.local
 .env-custom-development
 .env-development
 .env-textile
 .env-production
-.DS_STORE
-DS_STORE
+
+# IDE
+.nova
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+**/.DS_Store
+
+# Lock files
 yarn.lock
-node_modules
-dist
-analytics.txt
 package-lock.json
 
-/**/*/.DS_STORE
-/**/*/node_modules
-/**/*/.next
-/**/*/.data
+# Vercel
 .vercel
+
+# Logs and analytics
+analytics.txt
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Data directories
+.data/
+**/.data/
